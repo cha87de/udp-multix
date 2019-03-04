@@ -1,0 +1,38 @@
+#!/bin/bash
+
+function validate(){
+    vars="INPORT OUT1 OUT2"
+    for var in $vars; do
+        if [[ $(env | awk -F "=" '{print $1}' | grep "^$var$") != "$var" ]]; then
+            echo "$var not set but required."
+            return 1
+        fi
+    done
+}
+
+function start(){
+    socat - udp4-listen:$INPORT,fork | tee >(socat - udp-sendto:$OUT1) >(socat - udp-sendto:$OUT2) > /dev/null
+}
+
+function main(){
+    # validate env vars
+    validate
+    if [[ $? != 0 ]]; then 
+        echo "validation failed. exiting now." >&2
+        exit 1
+    fi
+
+    start 
+    if [[ $? != 0 ]]; then 
+        echo "execution failed. exiting now." >&2
+        exit 1
+    fi
+
+    exit 0
+}
+
+if [[ "$1" == "" ]]; then
+    main
+else
+    exec "$@"
+fi
